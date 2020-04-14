@@ -1,125 +1,89 @@
+import java.io.File;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
 
 public class Driver {
-	static int lengthOfReference = 0, numOfFrames = 0, referenceString[];
-	static Scanner input = new Scanner(System.in);
-
-	public static void main(String args[]) {
+	public static void main(String[] args) {
 		try {
-			OptimalPageReplacement opt = new OptimalPageReplacement();
-			LeastRecentlyUsed lru = new LeastRecentlyUsed();
+			Scanner input = new Scanner(System.in);
 
-			String algorithm = menu();
-			System.out.println("You have selected the "+algorithm);
+			int traversalCount = 0, numCylinder, startingCylinder;
 
-			setLengthOfReference();
-			setReferenceString();
+			System.out.println("Enter the number of cylinders on the disk");
+			numCylinder = input.nextInt();
+			System.out.println("Enter the initial cylinder");
+			startingCylinder = input.nextInt();
 
-			System.out.println("\n*************************************************************************");
-			System.out.println("PROCESS 1");
-			System.out.println("\nREFERENCE STRING 1:");
+			System.out.printf("Lower cylinder: 0\nUpper cylinder: %d\nInitial Cylinder: %d\n\n", numCylinder - 1,
+					startingCylinder);
 
-			for (int i = 0; i < lengthOfReference; i++)
-				System.out.printf("%d, ", referenceString[i]);
+			// loads in requests to list array
+			ArrayList<Integer> requests = loadFile(numCylinder);
 
-			System.out.println("\n---------------------------------------------------\n");
+			System.out.printf("Cylinder Requests:\n");
+			System.out.println(requests.toString() + "\n");
 
-			numOfFrames = 5;
+			SSTF sstf = new SSTF(requests);
 
-			float optFault = calculateFaults(opt);
-			float lruFault = calculateFaults(lru);
-			System.out.println("*************************************************************************");
+			int[] processed = sstf.getSSTF(startingCylinder);
 
-			// Second reference string
+			traversalCount += Math.abs(startingCylinder - processed[0]);
+			for (int i = 0; i < processed.length - 1; i++) {
+				traversalCount += Math.abs(processed[i] - processed[i + 1]);
+			}
+			System.out.println("\n" + "SSTF traversal count = " + traversalCount);
 
-			opt = new OptimalPageReplacement();
-			lru = new LeastRecentlyUsed();
-
-			setLengthOfReference();
-			setReferenceString();
-
-			System.out.println("PROCESS 2");
-			System.out.println("\nREFERENCE STRING 2:");
-
-			for (int i = 0; i < lengthOfReference; i++)
-				System.out.printf("%d, ", referenceString[i]);
-
-			System.out.println("\n---------------------------------------------------\n");
-
-			numOfFrames = 3;
-
-			optFault += calculateFaults(opt);
-			lruFault += calculateFaults(lru);
-			System.out.println("*************************************************************************");
-
-			System.out.println("\n\nAverage Page Fault Rate\n" + "________________________\n");
-			System.out.printf("Optimal Page Replacement Algorithm:\t%f\n", optFault/2);
-			System.out.printf("Least Recently Used Algorithm:\t\t%f\n\n", lruFault/2);
-			
-			//Better performing algorithm results 
-			System.out.println("**********************");
-			System.out.println("**BETTER PERFORMANCE**");
-			System.out.println("**********************");
-			if(optFault > lruFault)
-				System.out.println("Least Recently Used Algorithm");
-			
-			else if(optFault < lruFault)
-				System.out.println("Optimal Page Replacement Algorithm");
-			
-			else
-				System.out.println("Both are equal");
-		
+			input.close();
+		} catch (IOException e) {
+			System.out.println("Error encountered while handling file");
+			// e.printStackTrace();
 		} catch (Exception e) {
-			System.out.println("\n!!!Unexpected exception encountered during runtime!!!");
-			e.printStackTrace();
+			System.out.println("Unexpected error encountered during runtime");
+			// e.printStackTrace();
 		}
 	}
 
-	public static float calculateFaults(ReplacementAlgorithm algorithm) {
-		algorithm.setFrames(numOfFrames);
-		algorithm.setReferenceLength(lengthOfReference);
-		algorithm.setReferenceString(referenceString);
+	public static ArrayList<Integer> loadFile(int limit) throws IOException {
+		ArrayList<Integer> cylinderRequests = new ArrayList<Integer>();
+		String fileName = "cylinderRequests.txt";
+		File file = new File(fileName);
 
-		float faultRate = algorithm.calculatePageFaults();
-		System.out.println("\n");
+		while (true) {
+			// check if file exists before reading from it
+			if (file.exists()) {
+				Scanner fileReader = new Scanner(new FileReader(file));
 
-		return faultRate;
-	}
+				while (fileReader.hasNext()) {
+					int request = fileReader.nextInt();
+					if (request < limit)
+						cylinderRequests.add(request);
+				}
+				fileReader.close();
 
-	public static String menu() {
-		System.out.println("Select an algorithm by entering its corresponding number\n" + "1.Optimal Page Replacement\n"
-				+ "2.Least Recently Used\n" + "3.Exit");
-
-		int choice = input.nextInt();
-
-		switch (choice) {
-		case 1:
-			return "Optimal Page Replacement Algorithm";
-
-		case 2:
-			return "Least Recently Used Algorithm";
-
-		default:
-			System.out.println("\nGoodbye (-_-)");
-			System.exit(0);
-			return "";
+				break;
+			}
+			// creates request file if its not found
+			else {
+				createFile();
+			}
 		}
+
+		return cylinderRequests;
 	}
 
-	public static void setLengthOfReference() {
-		Random random = new Random();
+	// Populates file with 25 random cylinder requests in 0-500 range
+	public static void createFile() throws IOException {
+		FileWriter fileWriter = new FileWriter("cylinderRequests.txt");
+		Random rand = new Random();
 
-		lengthOfReference = random.nextInt(15) + 1;
-	}
-
-	public static void setReferenceString() {
-		referenceString = new int[lengthOfReference];
-
-		Random random = new Random();
-
-		for (int i = 0; i < lengthOfReference; i++) {
-			referenceString[i] = random.nextInt(100);
+		for (int i = 0; i < 25; i++) {
+			fileWriter.write(rand.nextInt(501) + "\n");
 		}
+
+		fileWriter.close();
 	}
 }
